@@ -1,0 +1,1679 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkyCast — Live Weather</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800;900&family=Inter:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        :root {
+            --bg: #030b18;
+            --card: rgba(8, 26, 46, .78);
+            --card-h: rgba(10, 32, 55, .88);
+            --cb: rgba(60, 150, 255, .16);
+            --cbh: rgba(60, 150, 255, .35);
+            --acc: #4B9EFF;
+            --accg: rgba(75, 158, 255, .25);
+            --warm: #FFB340;
+            --warmg: rgba(255, 179, 64, .25);
+            --cool: #64D2FF;
+            --txt1: #E6F2FF;
+            --txt2: #7BA7CC;
+            --txt3: #3F6A8A;
+            --ok: #4ade80;
+            --warn: #fbbf24;
+            --err: #f87171;
+            --r: 18px;
+            --rs: 10px;
+            --sh: 0 8px 32px rgba(0, 0, 0, .45);
+            --tr: .3s ease;
+            --blur: blur(22px)
+        }
+
+        html,
+        body {
+            height: 100%;
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--txt1);
+            overflow-x: hidden;
+            scroll-behavior: smooth
+        }
+
+        /* ── BACKGROUND ── */
+        #bgc {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none
+        }
+
+        #bgg {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            transition: background 2.5s ease
+        }
+
+        .g-sunny {
+            background: radial-gradient(ellipse 60% 50% at 15% 15%, rgba(255, 179, 64, .18) 0%, transparent 65%), radial-gradient(ellipse 50% 60% at 80% 80%, rgba(75, 158, 255, .14) 0%, transparent 65%), linear-gradient(135deg, #031428 0%, #0a2a50 55%, #162840 100%)
+        }
+
+        .g-cloud {
+            background: radial-gradient(ellipse 70% 40% at 50% 0%, rgba(90, 110, 150, .22) 0%, transparent 70%), linear-gradient(135deg, #0a0f1a 0%, #141f2e 50%, #1a2030 100%)
+        }
+
+        .g-rain {
+            background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(40, 80, 160, .3) 0%, transparent 70%), linear-gradient(135deg, #030810 0%, #0a1020 55%, #0a1828 100%)
+        }
+
+        .g-snow {
+            background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(100, 180, 255, .2) 0%, transparent 70%), linear-gradient(135deg, #050a14 0%, #0d1a28 55%, #101e30 100%)
+        }
+
+        .g-storm {
+            background: radial-gradient(ellipse 60% 55% at 50% 30%, rgba(80, 40, 160, .32) 0%, transparent 65%), linear-gradient(135deg, #040610 0%, #0a0818 50%, #100820 100%)
+        }
+
+        .g-night {
+            background: radial-gradient(ellipse 55% 50% at 70% 20%, rgba(75, 40, 160, .2) 0%, transparent 60%), radial-gradient(ellipse 50% 50% at 20% 80%, rgba(20, 60, 120, .2) 0%, transparent 60%), linear-gradient(135deg, #020510 0%, #060b1a 50%, #080814 100%)
+        }
+
+        .g-fog {
+            background: radial-gradient(ellipse 80% 60% at 50% 50%, rgba(80, 100, 130, .28) 0%, transparent 80%), linear-gradient(135deg, #080c14 0%, #10161e 50%, #141a22 100%)
+        }
+
+        /* ── APP SHELL ── */
+        #app {
+            position: relative;
+            z-index: 10;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column
+        }
+
+        #app.hidden {
+            display: none
+        }
+
+        .con {
+            width: 100%;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 20px
+        }
+
+        /* ── SETUP ── */
+        #setup {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(3, 11, 24, .95);
+            backdrop-filter: var(--blur)
+        }
+
+        #setup.hidden {
+            display: none
+        }
+
+        .s-card {
+            width: 100%;
+            max-width: 460px;
+            padding: 44px 40px;
+            background: var(--card);
+            border: 1px solid var(--cb);
+            border-radius: 24px;
+            backdrop-filter: var(--blur);
+            box-shadow: var(--sh);
+            text-align: center
+        }
+
+        .s-logo {
+            font-family: 'Nunito', sans-serif;
+            font-size: 2.4rem;
+            font-weight: 900;
+            letter-spacing: -1px;
+            background: linear-gradient(135deg, var(--cool), var(--acc));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 6px
+        }
+
+        .s-tag {
+            color: var(--txt2);
+            font-size: .88rem;
+            margin-bottom: 32px;
+            line-height: 1.5
+        }
+
+        .s-lbl {
+            display: block;
+            text-align: left;
+            font-size: .72rem;
+            font-weight: 700;
+            color: var(--txt2);
+            letter-spacing: .09em;
+            text-transform: uppercase;
+            margin-bottom: 7px
+        }
+
+        .s-in {
+            width: 100%;
+            padding: 13px 15px;
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid var(--cb);
+            border-radius: var(--rs);
+            color: var(--txt1);
+            font-size: .92rem;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: border-color var(--tr), box-shadow var(--tr);
+            margin-bottom: 14px
+        }
+
+        .s-in:focus {
+            border-color: var(--acc);
+            box-shadow: 0 0 0 3px var(--accg)
+        }
+
+        .s-in::placeholder {
+            color: var(--txt3)
+        }
+
+        .btn-main {
+            width: 100%;
+            padding: 13px 24px;
+            background: linear-gradient(135deg, var(--acc), #2575e8);
+            border: none;
+            border-radius: var(--rs);
+            color: #fff;
+            font-size: .95rem;
+            font-weight: 700;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all var(--tr);
+            letter-spacing: .02em
+        }
+
+        .btn-main:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px var(--accg)
+        }
+
+        .btn-main:active {
+            transform: translateY(0)
+        }
+
+        .s-note {
+            margin-top: 18px;
+            font-size: .78rem;
+            color: var(--txt3);
+            line-height: 1.5
+        }
+
+        .s-note a {
+            color: var(--acc);
+            text-decoration: none
+        }
+
+        .s-note a:hover {
+            text-decoration: underline
+        }
+
+        .s-err {
+            color: var(--err);
+            font-size: .82rem;
+            margin-bottom: 10px;
+            display: none;
+            text-align: left
+        }
+
+        /* ── HEADER ── */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            padding: 14px 0;
+            background: rgba(3, 11, 24, .82);
+            backdrop-filter: var(--blur);
+            border-bottom: 1px solid rgba(255, 255, 255, .05)
+        }
+
+        .h-inner {
+            display: flex;
+            align-items: center;
+            gap: 14px
+        }
+
+        .logo {
+            font-family: 'Nunito', sans-serif;
+            font-size: 1.35rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--cool), var(--acc));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            white-space: nowrap;
+            letter-spacing: -.5px;
+            flex-shrink: 0
+        }
+
+        .sw {
+            flex: 1;
+            position: relative
+        }
+
+        .si {
+            width: 100%;
+            padding: 10px 14px 10px 40px;
+            background: rgba(255, 255, 255, .07);
+            border: 1px solid var(--cb);
+            border-radius: 40px;
+            color: var(--txt1);
+            font-size: .88rem;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: all var(--tr)
+        }
+
+        .si::placeholder {
+            color: var(--txt3)
+        }
+
+        .si:focus {
+            border-color: var(--acc);
+            background: rgba(75, 158, 255, .09)
+        }
+
+        .si-ic {
+            position: absolute;
+            left: 13px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--txt3);
+            font-size: .95rem;
+            pointer-events: none
+        }
+
+        .sr {
+            position: absolute;
+            top: calc(100% + 7px);
+            left: 0;
+            right: 0;
+            background: rgba(5, 17, 30, .98);
+            border: 1px solid var(--cb);
+            border-radius: var(--rs);
+            backdrop-filter: var(--blur);
+            box-shadow: var(--sh);
+            overflow: hidden;
+            display: none;
+            z-index: 200
+        }
+
+        .sr.vis {
+            display: block
+        }
+
+        .si-item {
+            padding: 11px 15px;
+            cursor: pointer;
+            transition: background var(--tr);
+            border-bottom: 1px solid rgba(255, 255, 255, .04)
+        }
+
+        .si-item:last-child {
+            border-bottom: none
+        }
+
+        .si-item:hover {
+            background: rgba(75, 158, 255, .1)
+        }
+
+        .si-name {
+            font-size: .88rem;
+            font-weight: 600;
+            color: var(--txt1)
+        }
+
+        .si-region {
+            font-size: .76rem;
+            color: var(--txt2);
+            margin-top: 2px
+        }
+
+        .h-acts {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0
+        }
+
+        .utog {
+            display: flex;
+            background: rgba(255, 255, 255, .07);
+            border: 1px solid var(--cb);
+            border-radius: 40px;
+            overflow: hidden
+        }
+
+        .ubtn {
+            padding: 8px 13px;
+            border: none;
+            background: transparent;
+            color: var(--txt2);
+            font-size: .82rem;
+            font-weight: 700;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all var(--tr)
+        }
+
+        .ubtn.on {
+            background: var(--acc);
+            color: #fff
+        }
+
+        .ic-btn {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, .07);
+            border: 1px solid var(--cb);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all var(--tr);
+            font-size: .95rem;
+            color: var(--txt2)
+        }
+
+        .ic-btn:hover {
+            background: rgba(75, 158, 255, .14);
+            border-color: var(--acc);
+            color: var(--acc)
+        }
+
+        /* ── MAIN ── */
+        main {
+            flex: 1;
+            padding: 22px 0 48px
+        }
+
+        /* ── ALERT ── */
+        .al-ban {
+            background: rgba(251, 191, 36, .1);
+            border: 1px solid rgba(251, 191, 36, .3);
+            border-radius: var(--rs);
+            padding: 11px 15px;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            font-size: .85rem;
+            color: var(--warn)
+        }
+
+        /* ── HERO ── */
+        .hero {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 32px 30px;
+            background: var(--card);
+            border: 1px solid var(--cb);
+            border-radius: var(--r);
+            backdrop-filter: var(--blur);
+            position: relative;
+            overflow: hidden
+        }
+
+        .hero::after {
+            content: '';
+            position: absolute;
+            top: -40%;
+            right: -8%;
+            width: 360px;
+            height: 360px;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--accg) 0%, transparent 70%);
+            pointer-events: none
+        }
+
+        .h-loc {
+            font-size: .8rem;
+            font-weight: 700;
+            color: var(--txt2);
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            margin-bottom: 4px
+        }
+
+        .h-temp {
+            font-family: 'Nunito', sans-serif;
+            font-size: 7rem;
+            font-weight: 300;
+            line-height: 1;
+            color: var(--txt1);
+            letter-spacing: -4px;
+            margin: 6px 0
+        }
+
+        .h-temp sup {
+            font-size: 2.3rem;
+            font-weight: 500;
+            vertical-align: top;
+            margin-top: 14px;
+            color: var(--txt2);
+            letter-spacing: 0
+        }
+
+        .h-cond {
+            font-size: 1.1rem;
+            color: var(--txt2);
+            margin-bottom: 14px
+        }
+
+        .h-meta {
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap
+        }
+
+        .h-mi {
+            font-size: .82rem;
+            color: var(--txt2)
+        }
+
+        .h-mi span {
+            color: var(--txt1);
+            font-weight: 600
+        }
+
+        .h-icon-w {
+            text-align: right;
+            position: relative;
+            z-index: 1
+        }
+
+        .h-icon {
+            font-size: 6.5rem;
+            line-height: 1;
+            animation: fl 6s ease-in-out infinite
+        }
+
+        .h-rf {
+            font-size: .78rem;
+            color: var(--txt2);
+            margin-top: 6px;
+            text-align: right
+        }
+
+        @keyframes fl {
+
+            0%,
+            100% {
+                transform: translateY(0)
+            }
+
+            50% {
+                transform: translateY(-10px)
+            }
+        }
+
+        /* ── SECTION TITLE ── */
+        .stitle {
+            font-size: .72rem;
+            font-weight: 700;
+            letter-spacing: .13em;
+            text-transform: uppercase;
+            color: var(--txt3);
+            margin-bottom: 10px;
+            padding-left: 2px
+        }
+
+        /* ── HOURLY ── */
+        .ho-w {
+            margin-bottom: 22px
+        }
+
+        .ho-sc {
+            display: flex;
+            gap: 9px;
+            overflow-x: auto;
+            padding-bottom: 6px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--txt3) transparent
+        }
+
+        .ho-sc::-webkit-scrollbar {
+            height: 3px
+        }
+
+        .ho-sc::-webkit-scrollbar-thumb {
+            background: var(--txt3);
+            border-radius: 2px
+        }
+
+        .ho-card {
+            flex: 0 0 78px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 7px;
+            padding: 14px 8px;
+            background: var(--card);
+            border: 1px solid var(--cb);
+            border-radius: var(--rs);
+            backdrop-filter: var(--blur);
+            transition: all var(--tr);
+            cursor: default
+        }
+
+        .ho-card:hover {
+            background: var(--card-h);
+            border-color: var(--cbh);
+            transform: translateY(-2px)
+        }
+
+        .ho-card.now {
+            background: rgba(75, 158, 255, .14);
+            border-color: rgba(75, 158, 255, .4)
+        }
+
+        .ho-t {
+            font-size: .72rem;
+            color: var(--txt2);
+            font-weight: 600
+        }
+
+        .ho-card.now .ho-t {
+            color: var(--acc)
+        }
+
+        .ho-ic {
+            font-size: 1.5rem
+        }
+
+        .ho-tmp {
+            font-family: 'Nunito', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 700
+        }
+
+        .ho-pp {
+            font-size: .68rem;
+            color: var(--cool)
+        }
+
+        /* ── DAILY ── */
+        .da-w {
+            margin-bottom: 22px
+        }
+
+        .da-card {
+            display: grid;
+            grid-template-columns: 90px 38px 1fr auto auto;
+            align-items: center;
+            gap: 14px;
+            padding: 13px 18px;
+            background: var(--card);
+            border: 1px solid var(--cb);
+            border-radius: var(--rs);
+            backdrop-filter: var(--blur);
+            margin-bottom: 5px;
+            transition: all var(--tr)
+        }
+
+        .da-card:hover {
+            background: var(--card-h);
+            border-color: var(--cbh)
+        }
+
+        .da-card.tod {
+            border-color: rgba(75, 158, 255, .38)
+        }
+
+        .da-day {
+            font-size: .88rem;
+            font-weight: 600;
+            color: var(--txt1)
+        }
+
+        .da-card.tod .da-day {
+            color: var(--acc)
+        }
+
+        .da-ic {
+            font-size: 1.4rem
+        }
+
+        .da-bar-w {
+            position: relative;
+            height: 5px;
+            background: rgba(255, 255, 255, .08);
+            border-radius: 3px
+        }
+
+        .da-bar {
+            position: absolute;
+            height: 100%;
+            border-radius: 3px;
+            background: linear-gradient(90deg, var(--cool), var(--warm))
+        }
+
+        .da-pp {
+            font-size: .76rem;
+            color: var(--cool);
+            font-weight: 500;
+            white-space: nowrap
+        }
+
+        .da-temps {
+            font-family: 'Nunito', sans-serif;
+            font-size: .92rem;
+            font-weight: 700;
+            white-space: nowrap;
+            text-align: right
+        }
+
+        .da-lo {
+            color: var(--txt2);
+            font-size: .82rem
+        }
+
+        /* ── SUN ARC ── */
+        .sun-card {
+            padding: 18px 20px;
+            background: var(--card);
+            border: 1px solid var(--cb);
+            border-radius: var(--rs);
+            backdrop-filter: var(--blur);
+            margin-bottom: 22px
+        }
+
+        .sun-lbl {
+            display: flex;
+            justify-content: space-between;
+            font-size: .8rem;
+            color: var(--txt2);
+            margin-top: 8px
+        }
+
+        /* ── DETAILS ── */
+        .det-g {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 11px;
+            margin-bottom: 22px
+        }
+
+        .det-c {
+            padding: 18px;
+            background: var(--card);
+            border: 1px solid var(--cb);
+            border-radius: var(--rs);
+            backdrop-filter: var(--blur);
+            transition: all var(--tr)
+        }
+
+        .det-c:hover {
+            background: var(--card-h);
+            border-color: var(--cbh);
+            transform: translateY(-2px)
+        }
+
+        .det-lbl {
+            font-size: .7rem;
+            font-weight: 700;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: var(--txt3);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px
+        }
+
+        .det-ic {
+            font-size: .85rem
+        }
+
+        .det-val {
+            font-family: 'Nunito', sans-serif;
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: var(--txt1);
+            line-height: 1;
+            margin-bottom: 3px
+        }
+
+        .det-unit {
+            font-size: .82rem;
+            color: var(--txt2);
+            font-family: 'Inter', sans-serif;
+            font-weight: 400
+        }
+
+        .det-sub {
+            font-size: .76rem;
+            color: var(--txt2);
+            margin-top: 7px
+        }
+
+        .det-bar {
+            height: 3px;
+            background: rgba(255, 255, 255, .09);
+            border-radius: 2px;
+            margin-top: 9px;
+            overflow: hidden
+        }
+
+        .det-bf {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 1s ease
+        }
+
+        /* ── LOADING ── */
+        #ld {
+            position: fixed;
+            inset: 0;
+            z-index: 300;
+            background: rgba(3, 11, 24, .82);
+            backdrop-filter: var(--blur);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px
+        }
+
+        #ld.hidden {
+            display: none
+        }
+
+        .spin {
+            width: 44px;
+            height: 44px;
+            border: 3px solid rgba(75, 158, 255, .2);
+            border-top-color: var(--acc);
+            border-radius: 50%;
+            animation: sp .8s linear infinite
+        }
+
+        .ld-txt {
+            color: var(--txt2);
+            font-size: .88rem
+        }
+
+        @keyframes sp {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        /* ── TOAST ── */
+        #toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            z-index: 999;
+            background: rgba(248, 113, 113, .14);
+            border: 1px solid rgba(248, 113, 113, .4);
+            color: #fca5a5;
+            padding: 11px 22px;
+            border-radius: 40px;
+            font-size: .86rem;
+            font-weight: 500;
+            backdrop-filter: var(--blur);
+            transition: transform .4s cubic-bezier(.34, 1.56, .64, 1);
+            max-width: 90vw;
+            text-align: center
+        }
+
+        #toast.on {
+            transform: translateX(-50%) translateY(0)
+        }
+
+        #toast.ok-toast {
+            background: rgba(74, 222, 128, .12);
+            border-color: rgba(74, 222, 128, .35);
+            color: #86efac
+        }
+
+        /* ── FOOTER ── */
+        .foot {
+            font-size: .75rem;
+            color: var(--txt3);
+            text-align: center;
+            padding: 8px 0 28px
+        }
+
+        .foot a {
+            color: var(--txt3);
+            text-decoration: none
+        }
+
+        .foot a:hover {
+            color: var(--txt2)
+        }
+
+        /* ── LIGHTNING ── */
+        #lgtn {
+            position: fixed;
+            inset: 0;
+            z-index: 2;
+            background: #fff;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .05s
+        }
+
+        /* ── RESPONSIVE ── */
+        @media(max-width:900px) {
+            .det-g {
+                grid-template-columns: repeat(2, 1fr)
+            }
+        }
+
+        @media(max-width:768px) {
+            .hero {
+                grid-template-columns: 1fr;
+                gap: 14px;
+                padding: 22px 18px
+            }
+
+            .h-icon {
+                font-size: 5rem
+            }
+
+            .h-temp {
+                font-size: 5rem
+            }
+
+            .h-icon-w {
+                text-align: left
+            }
+
+            .da-card {
+                grid-template-columns: 78px 34px 1fr auto
+            }
+
+            .da-pp {
+                display: none
+            }
+
+            .logo {
+                font-size: 1.1rem
+            }
+        }
+
+        @media(max-width:480px) {
+            .h-inner {
+                gap: 9px
+            }
+
+            .utog {
+                display: none
+            }
+
+            .h-temp {
+                font-size: 4rem
+            }
+
+            .hero {
+                padding: 18px 14px
+            }
+
+            .det-g {
+                grid-template-columns: 1fr 1fr
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="bgc"></canvas>
+    <div id="bgg" class="g-night"></div>
+    <div id="lgtn"></div>
+
+    <!-- Loading -->
+    <div id="ld" class="hidden">
+        <div class="spin"></div>
+        <div class="ld-txt" id="ld-msg">Loading…</div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast"></div>
+
+    <!-- Setup Screen -->
+    <div id="setup">
+        <div class="s-card">
+            <div class="s-logo">☁ SkyCast</div>
+            <p class="s-tag">Powered by AccuWeather — enter your free API key to get started</p>
+            <label class="s-lbl">AccuWeather API Key</label>
+            <div id="s-err" class="s-err">⚠ Invalid or rate-limited API key. Please check your key.</div>
+            <input type="text" class="s-in" id="api-in" placeholder="Paste your API key here…" autocomplete="off"
+                spellcheck="false">
+            <button class="btn-main" onclick="doSetup()">Get Started →</button>
+            <p class="s-note">
+                No key yet? <a href="https://developer.accuweather.com/" target="_blank">Get a free key at AccuWeather
+                    →</a><br>
+                The free plan includes 50 API calls/day — plenty for personal use.
+            </p>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="hidden">
+        <header>
+            <div class="con">
+                <div class="h-inner">
+                    <div class="logo">☁ SkyCast</div>
+                    <div class="sw">
+                        <span class="si-ic">🔍</span>
+                        <input type="text" class="si" id="s-in" placeholder="Search city or location…"
+                            autocomplete="off" spellcheck="false">
+                        <div class="sr" id="s-res"></div>
+                    </div>
+                    <div class="h-acts">
+                        <div class="ic-btn" onclick="doGPS()" title="Use my location">📍</div>
+                        <div class="ic-btn" onclick="doRefresh()" title="Refresh data">🔄</div>
+                        <div class="utog">
+                            <button class="ubtn on" id="btn-c" onclick="setUnit('C')">°C</button>
+                            <button class="ubtn" id="btn-f" onclick="setUnit('F')">°F</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="con">
+
+                <!-- Alerts -->
+                <div id="alerts"></div>
+
+                <!-- Hero -->
+                <div class="hero">
+                    <div>
+                        <div class="h-loc" id="h-loc">—</div>
+                        <div class="h-temp" id="h-temp">—<sup id="h-unit">°C</sup></div>
+                        <div class="h-cond" id="h-cond">—</div>
+                        <div class="h-meta">
+                            <div class="h-mi">Feels like <span id="h-feel">—</span></div>
+                            <div class="h-mi">↑ <span id="h-hi">—</span></div>
+                            <div class="h-mi">↓ <span id="h-lo">—</span></div>
+                            <div class="h-mi">Humidity <span id="h-hum">—</span></div>
+                        </div>
+                    </div>
+                    <div class="h-icon-w">
+                        <div class="h-icon" id="h-icon">🌡️</div>
+                        <div class="h-rf" id="h-rf"></div>
+                    </div>
+                </div>
+
+                <!-- Hourly -->
+                <div class="ho-w">
+                    <div class="stitle">Hourly Forecast</div>
+                    <div class="ho-sc" id="hourly"></div>
+                </div>
+
+                <!-- Daily -->
+                <div class="da-w">
+                    <div class="stitle">5-Day Forecast</div>
+                    <div id="daily"></div>
+                </div>
+
+                <!-- Sun Arc -->
+                <div class="sun-card">
+                    <div class="stitle">Sunrise &amp; Sunset</div>
+                    <canvas id="sun-c" height="72"
+                        style="width:100%;height:72px;display:block;margin-top:10px"></canvas>
+                    <div class="sun-lbl">
+                        <span>🌅 Rise: <strong id="sr-t">—</strong></span>
+                        <span id="day-len-txt"></span>
+                        <span>Set: <strong id="ss-t">—</strong> 🌇</span>
+                    </div>
+                </div>
+
+                <!-- Details Grid -->
+                <div class="stitle">Weather Details</div>
+                <div class="det-g">
+                    <!-- Wind -->
+                    <div class="det-c">
+                        <div class="det-lbl"><span class="det-ic">💨</span>Wind</div>
+                        <div class="det-val" id="d-wind">—</div>
+                        <div class="det-unit" id="d-wind-u">km/h</div>
+                        <div class="det-sub" id="d-wind-dir">Direction —</div>
+                        <div class="det-sub" id="d-gust">Gust: —</div>
+                    </div>
+                    <!-- Humidity -->
+                    <div class="det-c">
+                        <div class="det-lbl"><span class="det-ic">💧</span>Humidity</div>
+                        <div class="det-val" id="d-hum">—</div>
+                        <div class="det-unit">%</div>
+                        <div class="det-bar">
+                            <div class="det-bf" id="d-hum-b" style="background:var(--cool);width:0%"></div>
+                        </div>
+                        <div class="det-sub" id="d-dew">Dew point: —</div>
+                    </div>
+                    <!-- Pressure -->
+                    <div class="det-c">
+                        <div class="det-lbl"><span class="det-ic">🌡️</span>Pressure</div>
+                        <div class="det-val" id="d-pres">—</div>
+                        <div class="det-unit" id="d-pres-u">hPa</div>
+                        <div class="det-sub" id="d-pres-trend">—</div>
+                    </div>
+                    <!-- Visibility -->
+                    <div class="det-c">
+                        <div class="det-lbl"><span class="det-ic">👁️</span>Visibility</div>
+                        <div class="det-val" id="d-vis">—</div>
+                        <div class="det-unit" id="d-vis-u">km</div>
+                        <div class="det-bar">
+                            <div class="det-bf" id="d-vis-b" style="background:var(--acc);width:0%"></div>
+                        </div>
+                        <div class="det-sub" id="d-vis-lbl">—</div>
+                    </div>
+                    <!-- UV Index -->
+                    <div class="det-c">
+                        <div class="det-lbl"><span class="det-ic">☀️</span>UV Index</div>
+                        <div class="det-val" id="d-uv">—</div>
+                        <div class="det-unit" id="d-uv-cat">—</div>
+                        <div class="det-bar">
+                            <div class="det-bf" id="d-uv-b" style="width:0%"></div>
+                        </div>
+                    </div>
+                    <!-- Cloud Cover -->
+                    <div class="det-c">
+                        <div class="det-lbl"><span class="det-ic">☁️</span>Cloud Cover</div>
+                        <div class="det-val" id="d-cloud">—</div>
+                        <div class="det-unit">%</div>
+                        <div class="det-bar">
+                            <div class="det-bf" id="d-cloud-b" style="background:var(--txt2);width:0%"></div>
+                        </div>
+                    </div>
+                    <!-- Precipitation -->
+                    <div class="det-c">
+                        <div class="det-lbl"><span class="det-ic">🌧️</span>Precipitation</div>
+                        <div class="det-val" id="d-prec">—</div>
+                        <div class="det-unit" id="d-prec-u">mm</div>
+                        <div class="det-sub" id="d-prec-type">—</div>
+                    </div>
+                    <!-- Ceiling -->
+                    <div class="det-c">
+                        <div class="det-lbl"><span class="det-ic">⬆️</span>Ceiling</div>
+                        <div class="det-val" id="d-ceil">—</div>
+                        <div class="det-unit" id="d-ceil-u">m</div>
+                        <div class="det-sub" id="d-ceil-cat">—</div>
+                    </div>
+                </div>
+
+                <div class="foot" id="foot">
+                    Powered by <a href="https://developer.accuweather.com/" target="_blank">AccuWeather</a>
+                    &nbsp;|&nbsp; <span id="upd-t"></span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // ── STATE ──────────────────────────────────────────────────────────────
+        const S = {
+            key: '', locKey: '', locName: '', country: '', isCel: true,
+            cur: null, hr: null, da: null, wType: 'night', parts: [], raf: null,
+            ltimer: null, dpr: 1, lastPartCount: 0
+        };
+
+        // ── ICON MAP ────────────────────────────────────────────────────────────
+        const IM = {
+            1: { e: '☀️', t: 'sunny' }, 2: { e: '🌤️', t: 'sunny' }, 3: { e: '⛅', t: 'cloud' },
+            4: { e: '🌥️', t: 'cloud' }, 5: { e: '🌤️', t: 'sunny' }, 6: { e: '🌥️', t: 'cloud' },
+            7: { e: '☁️', t: 'cloud' }, 8: { e: '☁️', t: 'cloud' }, 11: { e: '🌫️', t: 'fog' },
+            12: { e: '🌧️', t: 'rain' }, 13: { e: '🌦️', t: 'rain' }, 14: { e: '🌦️', t: 'rain' },
+            15: { e: '⛈️', t: 'storm' }, 16: { e: '⛈️', t: 'storm' }, 17: { e: '⛈️', t: 'storm' },
+            18: { e: '🌧️', t: 'rain' }, 19: { e: '🌨️', t: 'snow' }, 20: { e: '🌨️', t: 'snow' },
+            21: { e: '🌨️', t: 'snow' }, 22: { e: '❄️', t: 'snow' }, 23: { e: '❄️', t: 'snow' },
+            24: { e: '🧊', t: 'snow' }, 25: { e: '🌧️', t: 'rain' }, 26: { e: '🌧️', t: 'rain' },
+            29: { e: '🌧️', t: 'rain' }, 30: { e: '🌡️', t: 'sunny' }, 31: { e: '🥶', t: 'night' },
+            32: { e: '💨', t: 'cloud' }, 33: { e: '🌙', t: 'night' }, 34: { e: '🌙', t: 'night' },
+            35: { e: '🌥️', t: 'cloud' }, 36: { e: '🌥️', t: 'cloud' }, 37: { e: '🌫️', t: 'fog' },
+            38: { e: '☁️', t: 'cloud' }, 39: { e: '🌦️', t: 'rain' }, 40: { e: '🌧️', t: 'rain' },
+            41: { e: '⛈️', t: 'storm' }, 42: { e: '⛈️', t: 'storm' }, 43: { e: '🌨️', t: 'snow' },
+            44: { e: '❄️', t: 'snow' }
+        };
+
+        const UV_CATS = [
+            { max: 2, label: 'Low', color: '#4ade80', pct: 14 },
+            { max: 5, label: 'Moderate', color: '#fbbf24', pct: 38 },
+            { max: 7, label: 'High', color: '#f97316', pct: 56 },
+            { max: 10, label: 'Very High', color: '#ef4444', pct: 78 },
+            { max: 99, label: 'Extreme', color: '#a855f7', pct: 100 }
+        ];
+
+        // ── HELPERS ─────────────────────────────────────────────────────────────
+        const toF = c => Math.round(c * 9 / 5 + 32);
+        const dT = c => S.isCel ? Math.round(c) : toF(c);
+        const dTC = c => S.isCel ? `${Math.round(c)}°C` : `${toF(c)}°F`;
+        const dKmh = v => S.isCel ? `${Math.round(v)} km/h` : `${Math.round(v * .621371)} mph`;
+        const dKm = v => S.isCel ? `${Math.round(v)} km` : `${Math.round(v * .621371)} mi`;
+        const dHPa = v => S.isCel ? `${Math.round(v)} hPa` : `${(v * .0295301).toFixed(2)} inHg`;
+
+        function fmtHour(s) {
+            const d = new Date(s);
+            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+        }
+        function fmtDay(s) {
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            return days[new Date(s).getDay()];
+        }
+        function fmtTime(s) {
+            return new Date(s).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function showToast(msg, ok = false) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = ok ? 'on ok-toast' : 'on';
+            clearTimeout(S.ltimer);
+            S.ltimer = setTimeout(() => t.classList.remove('on', 'ok-toast'), 4200);
+        }
+        function showLD(msg = 'Loading…') {
+            document.getElementById('ld-msg').textContent = msg;
+            document.getElementById('ld').classList.remove('hidden');
+        }
+        function hideLD() { document.getElementById('ld').classList.add('hidden') }
+
+        // ── API ──────────────────────────────────────────────────────────────────
+        const BASE = 'https://dataservice.accuweather.com';
+        async function aw(path) {
+            try {
+                const r = await fetch(`${BASE}${path}&apikey=${S.key}`);
+                if (!r.ok) {
+                    const e = await r.json().catch(() => ({}));
+                    throw new Error(e.Message || `HTTP ${r.status}`);
+                }
+                return await r.json();
+            } catch (err) {
+                if (err instanceof SyntaxError) throw new Error('Invalid API response');
+                throw err;
+            }
+        }
+        const searchLocs = async q => { try { return await aw(`/locations/v1/cities/autocomplete?q=${encodeURIComponent(q)}&language=en-us`); } catch (e) { console.error('Search failed:', e); return []; } };
+        const geoSearch = async (la, ln) => { try { return await aw(`/locations/v1/cities/geoposition/search?q=${la},${ln}&language=en-us`); } catch (e) { console.error('Geo search failed:', e); throw e; } };
+        const getCur = async k => { try { const r = await aw(`/currentconditions/v1/${k}?details=true`); return r?.[0] || null; } catch (e) { console.error('Current conditions failed:', e); throw e; } };
+        const getHr = async k => { try { return await aw(`/forecasts/v1/hourly/12hour/${k}?metric=true&details=true&language=en-us`); } catch (e) { console.error('Hourly forecast failed:', e); return []; } };
+        const getDa = async k => { try { return await aw(`/forecasts/v1/daily/5day/${k}?metric=true&details=true&language=en-us`); } catch (e) { console.error('Daily forecast failed:', e); return null; } };
+
+        // ── SETUP ────────────────────────────────────────────────────────────────
+        async function doSetup() {
+            const k = document.getElementById('api-in').value.trim();
+            if (!k) return;
+            const errEl = document.getElementById('s-err');
+            errEl.style.display = 'none';
+            showLD('Validating API key…');
+            S.key = k;
+            try {
+                await searchLocs('London');
+                hideLD();
+                document.getElementById('setup').classList.add('hidden');
+                document.getElementById('app').classList.remove('hidden');
+                initCanvas();
+                doGPS();
+            } catch (e) {
+                hideLD(); S.key = '';
+                errEl.textContent = '⚠ ' + (e.message || 'Invalid API key');
+                errEl.style.display = 'block';
+            }
+        }
+
+        // ── GPS ───────────────────────────────────────────────────────────────────
+        function doGPS() {
+            if (!navigator.geolocation) { showToast('Geolocation not supported'); return }
+            showLD('Getting your location…');
+            navigator.geolocation.getCurrentPosition(
+                async pos => {
+                    try {
+                        const loc = await geoSearch(pos.coords.latitude, pos.coords.longitude);
+                        S.locKey = loc.Key; S.locName = loc.LocalizedName;
+                        S.country = loc.Country?.LocalizedName || '';
+                        await fetchAll();
+                    } catch (e) { hideLD(); showToast('Location lookup failed: ' + e.message) }
+                },
+                () => { hideLD(); showToast('Location denied — search for a city') }
+            );
+        }
+
+        function doRefresh() { if (S.locKey) fetchAll() }
+
+        // ── SEARCH ────────────────────────────────────────────────────────────────
+        let sTimer, sAbort;
+        function initSearch() {
+            const inp = document.getElementById('s-in');
+            const res = document.getElementById('s-res');
+            inp.addEventListener('input', () => {
+                clearTimeout(sTimer);
+                sAbort?.abort();
+                const q = inp.value.trim();
+                if (q.length < 2) { res.classList.remove('vis'); return }
+                sTimer = setTimeout(async () => {
+                    try {
+                        sAbort = new AbortController();
+                        renderSearch(await searchLocs(q))
+                    } catch (e) { if (e.name !== 'AbortError') console.error('Search failed:', e) }
+                }, 300);
+            });
+            inp.addEventListener('keydown', e => { if (e.key === 'Escape') res.classList.remove('vis') });
+            document.addEventListener('click', e => {
+                if (!e.target.closest('.sw')) res.classList.remove('vis');
+            });
+        }
+
+        function renderSearch(data) {
+            const res = document.getElementById('s-res');
+            if (!data || !data.length) {
+                res.innerHTML = '<div class="si-item"><div class="si-name" style="color:var(--txt3)">No results found</div></div>';
+                res.classList.add('vis'); return;
+            }
+            const escape = s => s.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+            res.innerHTML = data.map(l => {
+                const key = escape(l.Key), name = escape(l.LocalizedName), country = escape(l.Country?.LocalizedName || ''), region = escape(l.AdministrativeArea?.LocalizedName || '');
+                return `<div class="si-item" onclick="pickLoc('${key}', '${name}', '${country}', '${region}')"><div class="si-name">${name}</div><div class="si-region">${region ? region + ', ' : ''}${country}</div></div>`;
+            }).join('');
+            res.classList.add('vis');
+        }
+
+        async function pickLoc(key, name, country, region) {
+            S.locKey = key; S.locName = name; S.country = country;
+            document.getElementById('s-in').value = name + (region ? ', ' + region : '');
+            document.getElementById('s-res').classList.remove('vis');
+            await fetchAll();
+        }
+
+        // ── FETCH ─────────────────────────────────────────────────────────────────
+        async function fetchAll() {
+            showLD('Fetching weather data…');
+            try {
+                const [cur, hr, da] = await Promise.all([getCur(S.locKey), getHr(S.locKey), getDa(S.locKey)]);
+                if (!cur) throw new Error('No weather data returned');
+                S.cur = cur; S.hr = hr || []; S.da = da;
+                renderAll(); hideLD();
+            } catch (e) {
+                hideLD();
+                showToast(e.message ? 'Error: ' + e.message : 'Failed to fetch weather data');
+            }
+        }
+
+        // ── UNIT TOGGLE ───────────────────────────────────────────────────────────
+        function setUnit(u) {
+            S.isCel = u === 'C';
+            document.getElementById('btn-c').classList.toggle('on', S.isCel);
+            document.getElementById('btn-f').classList.toggle('on', !S.isCel);
+            if (S.cur) renderAll();
+        }
+
+        // ── RENDER ALL ────────────────────────────────────────────────────────────
+        function renderAll() {
+            renderHero(); renderHourly(); renderDaily(); renderDetails(); renderSun();
+            setBG();
+            const upd = S.cur.LocalObservationDateTime
+                ? new Date(S.cur.LocalObservationDateTime).toLocaleTimeString() : '';
+            document.getElementById('upd-t').textContent = upd ? `Updated ${upd}` : '';
+        }
+
+        // ── RENDER HERO ───────────────────────────────────────────────────────────
+        function renderHero() {
+            if (!S.cur) return;
+            const d = S.cur;
+            const tempC = d.Temperature?.Metric?.Value ?? 0;
+            const feelC = d.RealFeelTemperature?.Metric?.Value ?? tempC;
+            const ic = IM[d.WeatherIcon] || { e: '🌡️', t: 'cloud' };
+            const todayF = S.da?.DailyForecasts?.[0];
+
+            document.getElementById('h-loc').textContent = `${S.locName}${S.country ? ', ' + S.country : ''}`;
+            document.getElementById('h-temp').innerHTML = `${dT(tempC)}<sup id="h-unit">°${S.isCel ? 'C' : 'F'}</sup>`;
+            document.getElementById('h-cond').textContent = d.WeatherText || '';
+            document.getElementById('h-icon').textContent = ic.e;
+            document.getElementById('h-feel').textContent = `${dT(feelC)}°`;
+            document.getElementById('h-hum').textContent = `${d.RelativeHumidity ?? '—'}%`;
+            document.getElementById('h-rf').textContent = `Real Feel™ ${dTC(feelC)}`;
+
+            if (todayF && todayF.Temperature?.Maximum?.Value !== undefined && todayF.Temperature?.Minimum?.Value !== undefined) {
+                document.getElementById('h-hi').textContent = `${dT(todayF.Temperature.Maximum.Value)}°`;
+                document.getElementById('h-lo').textContent = `${dT(todayF.Temperature.Minimum.Value)}°`;
+            }
+        }
+
+        // ── RENDER HOURLY ─────────────────────────────────────────────────────────
+        function renderHourly() {
+            if (!S.hr || S.hr.length === 0) return;
+            const sc = document.getElementById('hourly');
+            sc.innerHTML = S.hr.map((h, i) => {
+                if (!h) return '';
+                const ic = IM[h.WeatherIcon] || { e: '🌡️' };
+                const pp = h.PrecipitationProbability || 0;
+                const temp = h.Temperature?.Value;
+                if (temp === undefined && temp !== 0) return '';
+                return `<div class="ho-card ${i === 0 ? 'now' : ''}">
+      <div class="ho-t">${i === 0 ? 'Now' : fmtHour(h.DateTime)}</div>
+      <div class="ho-ic">${ic.e}</div>
+      <div class="ho-tmp">${dT(temp)}°</div>
+      <div class="ho-pp">${pp > 0 ? `💧${pp}%` : ''}</div>
+    </div>`;
+            }).join('');
+        }
+
+        // ── RENDER DAILY ──────────────────────────────────────────────────────────
+        function renderDaily() {
+            if (!S.da || !S.da.DailyForecasts) return;
+            const list = document.getElementById('daily');
+            const fc = S.da.DailyForecasts;
+            if (fc.length === 0) return;
+            const allLo = Math.min(...fc.map(f => f.Temperature?.Minimum?.Value ?? 0));
+            const allHi = Math.max(...fc.map(f => f.Temperature?.Maximum?.Value ?? 0));
+            const rng = allHi - allLo || 1;
+
+            list.innerHTML = fc.map((f, i) => {
+                if (!f) return '';
+                const ic = IM[f.Day?.Icon] || { e: '🌡️' };
+                const lo = f.Temperature?.Minimum?.Value ?? 0;
+                const hi = f.Temperature?.Maximum?.Value ?? 0;
+                const bl = ((lo - allLo) / rng * 100).toFixed(1);
+                const bw = ((hi - lo) / rng * 100).toFixed(1);
+                const pp = f.Day?.PrecipitationProbability || 0;
+                const ph = f.Night?.PrecipitationProbability || 0;
+                const maxPP = Math.max(pp, ph);
+                return `<div class="da-card ${i === 0 ? 'tod' : ''}">
+      <div class="da-day">${i === 0 ? 'Today' : fmtDay(f.Date)}</div>
+      <div class="da-ic">${ic.e}</div>
+      <div class="da-bar-w"><div class="da-bar" style="left:${bl}%;width:${bw}%"></div></div>
+      <div class="da-pp">${maxPP > 0 ? `💧${maxPP}%` : ''}</div>
+      <div class="da-temps">${dT(hi)}°<span class="da-lo"> / ${dT(lo)}°</span></div>
+    </div>`;
+            }).join('');
+        }
+
+        // ── RENDER DETAILS ────────────────────────────────────────────────────────
+        function renderDetails() {
+            if (!S.cur) return;
+            const d = S.cur;
+
+            // Wind
+            const wKmh = d.Wind?.Speed?.Metric?.Value ?? 0;
+            const gKmh = d.WindGust?.Speed?.Metric?.Value ?? 0;
+            document.getElementById('d-wind').textContent = S.isCel ? Math.round(wKmh) : Math.round(wKmh * .621371);
+            document.getElementById('d-wind-u').textContent = S.isCel ? 'km/h' : 'mph';
+            const windDir = d.Wind?.Direction?.Localized || 'N/A';
+            const windDeg = d.Wind?.Direction?.Degrees ?? 0;
+            document.getElementById('d-wind-dir').textContent = `${windDir} (${windDeg}°)`;
+            document.getElementById('d-gust').textContent = `Gust: ${dKmh(gKmh)}`;
+
+            // Humidity
+            const hum = d.RelativeHumidity ?? 0;
+            document.getElementById('d-hum').textContent = hum;
+            document.getElementById('d-hum-b').style.width = Math.min(100, hum) + '%';
+            const dew = d.DewPoint?.Metric?.Value;
+            document.getElementById('d-dew').textContent = dew != null ? `Dew point: ${dTC(dew)}` : 'Dew point: —';
+
+            // Pressure
+            const hp = d.Pressure?.Metric?.Value;
+            if (hp != null) {
+                document.getElementById('d-pres').textContent = S.isCel ? Math.round(hp) : (hp * .0295301).toFixed(2);
+                document.getElementById('d-pres-u').textContent = S.isCel ? 'hPa' : 'inHg';
+                document.getElementById('d-pres-trend').textContent = d.PressureTendency?.LocalizedText || 'Stable';
+            }
+
+            // Visibility
+            const vkm = d.Visibility?.Metric?.Value;
+            if (vkm != null) {
+                document.getElementById('d-vis').textContent = S.isCel ? Math.round(vkm) : Math.round(vkm * .621371);
+                document.getElementById('d-vis-u').textContent = S.isCel ? 'km' : 'mi';
+                document.getElementById('d-vis-b').style.width = Math.min(100, (vkm / 20) * 100) + '%';
+                document.getElementById('d-vis-lbl').textContent = vkm >= 16 ? 'Excellent' : vkm >= 8 ? 'Good' : vkm >= 4 ? 'Moderate' : 'Poor';
+            }
+
+            // UV
+            const uv = d.UVIndex ?? 0;
+            document.getElementById('d-uv').textContent = uv;
+            const uc = UV_CATS.find(c => uv <= c.max) || UV_CATS[UV_CATS.length - 1];
+            document.getElementById('d-uv-cat').textContent = uc.label;
+            document.getElementById('d-uv-b').style.width = uc.pct + '%';
+            document.getElementById('d-uv-b').style.background = uc.color;
+
+            // Cloud
+            const cl = d.CloudCover ?? 0;
+            document.getElementById('d-cloud').textContent = cl;
+            document.getElementById('d-cloud-b').style.width = Math.min(100, cl) + '%';
+
+            // Precipitation
+            const pm = d.Precip1hr?.Metric?.Value ?? 0;
+            document.getElementById('d-prec').textContent = S.isCel ? pm.toFixed(1) : (pm * .0393701).toFixed(2);
+            document.getElementById('d-prec-u').textContent = S.isCel ? 'mm' : 'in';
+            document.getElementById('d-prec-type').textContent = d.HasPrecipitation ? (d.PrecipitationType || 'Active') : 'No precipitation';
+
+            // Ceiling
+            const cm = d.Ceiling?.Metric?.Value;
+            if (cm != null) {
+                document.getElementById('d-ceil').textContent = S.isCel ? Math.round(cm) : Math.round(cm * 3.28084);
+                document.getElementById('d-ceil-u').textContent = S.isCel ? 'm' : 'ft';
+                document.getElementById('d-ceil-cat').textContent = cm > 3000 ? 'High' : cm > 1500 ? 'Mid' : 'Low';
+            }
+        }
+
+        // ── RENDER SUN ARC ────────────────────────────────────────────────────────
+        function renderSun() {
+            if (!S.da || !S.da.DailyForecasts || S.da.DailyForecasts.length === 0) return;
+            const td = S.da.DailyForecasts[0];
+            if (!td.Sun) return;
+            const rise = new Date(td.Sun.Rise);
+            const set = new Date(td.Sun.Set);
+            if (isNaN(rise.getTime()) || isNaN(set.getTime())) return;
+
+            document.getElementById('sr-t').textContent = fmtTime(rise);
+            document.getElementById('ss-t').textContent = fmtTime(set);
+
+            const diffMs = set - rise;
+            const hrs = Math.floor(diffMs / 3600000);
+            const mins = Math.floor((diffMs % 3600000) / 60000);
+            document.getElementById('day-len-txt').textContent = `☀️ ${hrs}h ${mins}m`;
+
+            const canvas = document.getElementById('sun-c');
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = canvas.offsetWidth * dpr || 1060;
+            canvas.height = 72 * dpr;
+            const ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+            const W = canvas.offsetWidth || 1060, H = 72;
+            ctx.clearRect(0, 0, W, H);
+
+            const now = new Date();
+            const prog = Math.max(0, Math.min(1, (now - rise) / (set - rise)));
+            const pad = 44, cx = W / 2, cy = H + 18;
+            const rx = (W - pad * 2) / 2, ry = H + 12;
+
+            // Background arc
+            ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, -Math.PI, 0);
+            ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 1.5; ctx.stroke();
+
+            // Progress arc
+            const endA = -Math.PI + prog * Math.PI;
+            const grad = ctx.createLinearGradient(pad, 0, W - pad, 0);
+            grad.addColorStop(0, 'rgba(255,200,80,.6)'); grad.addColorStop(1, 'rgba(255,140,50,.7)');
+            ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, -Math.PI, endA);
+            ctx.strokeStyle = grad; ctx.lineWidth = 2.5; ctx.stroke();
+
+            // Sun dot
+            if (prog > 0 && prog < 1) {
+                const sx = cx + rx * Math.cos(-Math.PI + prog * Math.PI);
+                const sy = cy + ry * Math.sin(-Math.PI + prog * Math.PI);
+                ctx.beginPath(); ctx.arc(sx, sy, 8, 0, Math.PI * 2);
+                ctx.fillStyle = '#FFB340'; ctx.fill();
+                ctx.beginPath(); ctx.arc(sx, sy, 13, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255,179,64,.25)'; ctx.fill();
+            }
+
+            // Rise/set dots
+            [[pad, H - 16, '#FFB340'], [W - pad, H - 16, '#FF7040']].forEach(([x, y, c]) => {
+                ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2);
+                ctx.fillStyle = c; ctx.fill();
+            });
+        }
+
+        // ── BACKGROUND ───────────────────────────────────────────────────────────
+        const bgMap = {
+            sunny: 'g-sunny', cloud: 'g-cloud', rain: 'g-rain', snow: 'g-snow',
+            storm: 'g-storm', night: 'g-night', fog: 'g-fog'
+        };
+        let ltFlash;
+        function setBG() {
+            const d = S.cur;
+            const ic = IM[d.WeatherIcon] || { t: 'cloud' };
+            if (S.wType === ic.t) return;
+            S.wType = ic.t;
+            document.getElementById('bgg').className = bgMap[S.wType] || 'g-cloud';
+            if (S.wType === 'storm') startLightning(); else stopLightning();
+            initParts();
+        }
+
+        function startLightning() {
+            stopLightning();
+            function flash() {
+                const el = document.getElementById('lgtn');
+                el.style.opacity = '.25';
+                setTimeout(() => {
+                    el.style.opacity = '0';
+                    setTimeout(() => {
+                        el.style.opacity = '.15';
+                        setTimeout(() => { el.style.opacity = '0' }, 60);
+                    }, 80);
+                }, 60);
+                ltFlash = setTimeout(flash, 3000 + Math.random() * 7000);
+            }
+            ltFlash = setTimeout(flash, 1500 + Math.random() * 4000);
+        }
+        function stopLightning() { clearTimeout(ltFlash) }
+
+        // ── CANVAS PARTICLES ──────────────────────────────────────────────────────
+        function initCanvas() {
+            S.dpr = window.devicePixelRatio || 1;
+            resizeCvs();
+            window.addEventListener('resize', resizeCvs);
+            cancelAnimationFrame(S.raf);
+            animLoop();
+        }
+        function resizeCvs() {
+            const c = document.getElementById('bgc');
+            c.width = window.innerWidth * S.dpr;
+            c.height = window.innerHeight * S.dpr;
+            c.style.width = window.innerWidth + 'px';
+            c.style.height = window.innerHeight + 'px';
+            const ctx = c.getContext('2d');
+            if (ctx) ctx.scale(S.dpr, S.dpr);
+            initParts();
+        }
+        function initParts() {
+            const c = document.getElementById('bgc');
+            const W = c.width / S.dpr, H = c.height / S.dpr;
+            const t = S.wType;
+            const getNewCount = () => {
+                if (t === 'rain' || t === 'storm') return 130;
+                if (t === 'snow') return 90;
+                if (t === 'night' || t === 'cloud') return 160;
+                if (t === 'fog') return 40;
+                if (t === 'sunny') return 60;
+                return 0;
+            };
+            const newCount = getNewCount();
+            if (S.lastPartCount === newCount && newCount > 0) return;
+            S.lastPartCount = newCount;
+            S.parts = [];
+            if (t === 'rain' || t === 'storm') {
+                for (let i = 0; i < 130; i++)S.parts.push({ tp: 'rain', x: Math.random() * W, y: Math.random() * H, sp: 9 + Math.random() * 8, len: 12 + Math.random() * 14, op: .1 + Math.random() * .4 });
+            } else if (t === 'snow') {
+                for (let i = 0; i < 90; i++)S.parts.push({ tp: 'snow', x: Math.random() * W, y: Math.random() * H, sz: .8 + Math.random() * 2.5, sp: .4 + Math.random() * 1.4, dr: (Math.random() - .5) * .5, op: .3 + Math.random() * .5 });
+            } else if (t === 'night' || t === 'cloud') {
+                for (let i = 0; i < 160; i++)S.parts.push({ tp: 'star', x: Math.random() * W, y: Math.random() * H * .72, sz: Math.random() * 1.4 + .2, tw: Math.random() * Math.PI * 2, sp: .01 + Math.random() * .035 });
+            } else if (t === 'fog') {
+                for (let i = 0; i < 40; i++)S.parts.push({ tp: 'fog', x: Math.random() * W, y: Math.random() * H, w: 200 + Math.random() * 300, sp: .1 + Math.random() * .2, op: .02 + Math.random() * .04 });
+            } else if (t === 'sunny') {
+                for (let i = 0; i < 60; i++)S.parts.push({ tp: 'star', x: Math.random() * W, y: Math.random() * H * .4, sz: Math.random() * .8, tw: Math.random() * Math.PI * 2, sp: .005 + Math.random() * .015 });
+            }
+        }
+        function animLoop() {
+            const c = document.getElementById('bgc');
+            if (!c) return;
+            const ctx = c.getContext('2d');
+            if (!ctx) return;
+            const W = c.width / S.dpr, H = c.height / S.dpr;
+            ctx.clearRect(0, 0, W, H);
+            S.parts.forEach(p => {
+                if (p.tp === 'rain') {
+                    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + 1, p.y + p.len);
+                    ctx.strokeStyle = `rgba(100,180,255,${p.op})`; ctx.lineWidth = .8; ctx.stroke();
+                    p.y += p.sp; if (p.y > H + p.len) { p.y = -p.len; p.x = Math.random() * W }
+                } else if (p.tp === 'snow') {
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.sz, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(200,225,255,${p.op})`; ctx.fill();
+                    p.y += p.sp; p.x += p.dr; if (p.y > H + p.sz) { p.y = -p.sz; p.x = Math.random() * W }
+                } else if (p.tp === 'star') {
+                    p.tw += p.sp; const a = .25 + .6 * Math.abs(Math.sin(p.tw));
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.sz, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(210,230,255,${a})`; ctx.fill();
+                } else if (p.tp === 'fog') {
+                    ctx.beginPath(); ctx.ellipse(p.x, p.y, p.w, 30, 0, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(150,170,200,${p.op})`; ctx.fill();
+                    p.x += p.sp; if (p.x > W + p.w) p.x = -p.w;
+                }
+            });
+            cancelAnimationFrame(S.raf);
+            S.raf = requestAnimationFrame(animLoop);
+        }
+
+        // ── CLEANUP ───────────────────────────────────────────────────────────────
+        function cleanup() {
+            cancelAnimationFrame(S.raf);
+            clearTimeout(S.ltimer);
+            clearTimeout(ltFlash);
+        }
+        window.addEventListener('beforeunload', cleanup);
+
+        // ── INIT ──────────────────────────────────────────────────────────────────
+        document.addEventListener('DOMContentLoaded', () => {
+            const apiInput = document.getElementById('api-in');
+            if (apiInput) {
+                apiInput.addEventListener('keydown', e => {
+                    if (e.key === 'Enter') doSetup();
+                });
+            }
+            initSearch();
+            // Redraw sun arc on resize
+            window.addEventListener('resize', () => { if (S.da) renderSun(); });
+        });
+    </script>
+</body>
+
+</html>
