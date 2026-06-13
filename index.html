@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SkyCast — Live Weather</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <!-- Google Fonts (from trusted CDN, integrity check not available) -->
     <link
         href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800;900&family=Inter:wght@300;400;500;600&display=swap"
         rel="stylesheet">
@@ -220,6 +221,30 @@
         }
 
         .btn-main:active {
+            transform: translateY(0)
+        }
+
+        .btn-oauth {
+            width: 100%;
+            padding: 13px 24px;
+            background: rgba(255, 255, 255, .08);
+            border: 1px solid var(--cb);
+            border-radius: var(--rs);
+            color: #fff;
+            font-size: .95rem;
+            font-weight: 700;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all var(--tr);
+            letter-spacing: .02em
+        }
+
+        .btn-oauth:hover {
+            background: rgba(255, 255, 255, .12);
+            border-color: var(--acc)
+        }
+
+        .btn-oauth:active {
             transform: translateY(0)
         }
 
@@ -970,21 +995,53 @@
     <!-- Toast -->
     <div id="toast"></div>
 
-    <!-- Setup Screen -->
+    <!-- Auth Screen -->
     <div id="setup">
         <div class="s-card">
             <div class="s-logo">☁ SkyCast</div>
-            <p class="s-tag">Powered by AccuWeather — enter your free API key to get started</p>
-            <label class="s-lbl">AccuWeather API Key</label>
-            <div id="s-err" class="s-err">⚠ Invalid or rate-limited API key. Please check your key.</div>
-            <input type="text" class="s-in" id="api-in" placeholder="Paste your API key here…" autocomplete="off"
-                spellcheck="false">
-            <button class="btn-main" onclick="doSetup()">Get Started →</button>
-            <p class="s-note">
-                No key yet? <a href="https://developer.accuweather.com/" target="_blank">Get a free key at AccuWeather
-                    →</a><br>
-                The free plan includes 50 API calls/day — plenty for personal use.
-            </p>
+            <p class="s-tag">Welcome to SkyCast — Sign in or create an account to get started</p>
+
+            <!-- Login Tab -->
+            <div id="login-form">
+                <label class="s-lbl" for="login-email">Email</label>
+                <input type="email" class="s-in" id="login-email" placeholder="your@email.com" autocomplete="off">
+                <label class="s-lbl" for="login-password">Password</label>
+                <input type="password" class="s-in" id="login-password" placeholder="Enter your password"
+                    autocomplete="off">
+                <div id="s-err" class="s-err">⚠ Invalid email or password</div>
+                <button class="btn-main" onclick="doLogin()">Sign In →</button>
+                <p class="s-note">
+                    Don't have an account? <button type="button" onclick="toggleAuthForm(event)"
+                        style="background:none;border:none;padding:0;margin:0;cursor:pointer;color:var(--acc);text-decoration:none;font-family:inherit;font-size:inherit">Create
+                        one →</button>
+                </p>
+            </div>
+
+            <!-- Signup Tab (Hidden by default) -->
+            <div id="signup-form" style="display:none">
+                <label class="s-lbl" for="signup-name">Full Name</label>
+                <input type="text" class="s-in" id="signup-name" placeholder="Your name">
+                <label class="s-lbl" for="signup-email">Email</label>
+                <input type="email" class="s-in" id="signup-email" placeholder="your@email.com" autocomplete="off">
+                <label class="s-lbl" for="signup-password">Password</label>
+                <input type="password" class="s-in" id="signup-password" placeholder="At least 6 characters"
+                    autocomplete="off">
+                <div id="s-err-signup" class="s-err">⚠ Error creating account</div>
+                <button class="btn-main" onclick="doSignup()">Create Account →</button>
+                <p class="s-note">
+                    Already have an account? <button type="button" onclick="toggleAuthForm(event)"
+                        style="background:none;border:none;padding:0;margin:0;cursor:pointer;color:var(--acc);text-decoration:none;font-family:inherit;font-size:inherit">Sign
+                        in →</button>
+                </p>
+            </div>
+
+            <!-- OAuth Options -->
+            <div style="margin-top: 18px; text-align: center;">
+                <p class="s-note" style="margin-bottom: 12px;">Or continue with</p>
+                <button class="btn-oauth" onclick="doGoogleLogin()" style="margin-bottom: 8px;">
+                    🔵 Continue with Google
+                </button>
+            </div>
         </div>
     </div>
 
@@ -1001,12 +1058,15 @@
                         <div class="sr" id="s-res"></div>
                     </div>
                     <div class="h-acts">
-                        <div class="ic-btn" onclick="doGPS()" title="Use my location">📍</div>
-                        <div class="ic-btn" onclick="doRefresh()" title="Refresh data">🔄</div>
+                        <button class="ic-btn" onclick="doGPS()" title="Use my location"
+                            aria-label="Use my location">📍</button>
+                        <button class="ic-btn" onclick="doRefresh()" title="Refresh data"
+                            aria-label="Refresh data">🔄</button>
                         <div class="utog">
                             <button class="ubtn on" id="btn-c" onclick="setUnit('C')">°C</button>
                             <button class="ubtn" id="btn-f" onclick="setUnit('F')">°F</button>
                         </div>
+                        <button class="ic-btn" onclick="logout()" title="Logout" aria-label="Logout">🚪</button>
                     </div>
                 </div>
             </div>
@@ -1144,10 +1204,15 @@
     <script>
         // ── STATE ──────────────────────────────────────────────────────────────
         const S = {
-            key: '', locKey: '', locName: '', country: '', isCel: true,
+            token: localStorage.getItem('token') || '',
+            userId: localStorage.getItem('userId') || '',
+            userName: localStorage.getItem('userName') || '',
+            locKey: '', locName: '', country: '', isCel: true,
             cur: null, hr: null, da: null, wType: 'night', parts: [], raf: null,
             ltimer: null, dpr: 1, lastPartCount: 0
         };
+
+        const API_BASE = 'http://localhost:5000/api';
 
         // ── ICON MAP ────────────────────────────────────────────────────────────
         const IM = {
@@ -1209,45 +1274,168 @@
         function hideLD() { document.getElementById('ld').classList.add('hidden') }
 
         // ── API ──────────────────────────────────────────────────────────────────
-        const BASE = 'https://dataservice.accuweather.com';
-        async function aw(path) {
+
+        async function apiCall(endpoint, options = {}) {
             try {
-                const r = await fetch(`${BASE}${path}&apikey=${S.key}`);
-                if (!r.ok) {
-                    const e = await r.json().catch(() => ({}));
-                    throw new Error(e.Message || `HTTP ${r.status}`);
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${S.token}`,
+                    ...options.headers
+                };
+                const response = await fetch(endpoint, {
+                    method: options.method || 'GET',
+                    headers,
+                    body: options.body ? JSON.stringify(options.body) : undefined
+                });
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        logout();
+                        return null;
+                    }
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(err.error || `HTTP ${response.status}`);
                 }
-                return await r.json();
+                return await response.json();
             } catch (err) {
-                if (err instanceof SyntaxError) throw new Error('Invalid API response');
+                console.error('API Error:', err);
                 throw err;
             }
         }
-        const searchLocs = async q => { try { return await aw(`/locations/v1/cities/autocomplete?q=${encodeURIComponent(q)}&language=en-us`); } catch (e) { console.error('Search failed:', e); return []; } };
-        const geoSearch = async (la, ln) => { try { return await aw(`/locations/v1/cities/geoposition/search?q=${la},${ln}&language=en-us`); } catch (e) { console.error('Geo search failed:', e); throw e; } };
-        const getCur = async k => { try { const r = await aw(`/currentconditions/v1/${k}?details=true`); return r?.[0] || null; } catch (e) { console.error('Current conditions failed:', e); throw e; } };
-        const getHr = async k => { try { return await aw(`/forecasts/v1/hourly/12hour/${k}?metric=true&details=true&language=en-us`); } catch (e) { console.error('Hourly forecast failed:', e); return []; } };
-        const getDa = async k => { try { return await aw(`/forecasts/v1/daily/5day/${k}?metric=true&details=true&language=en-us`); } catch (e) { console.error('Daily forecast failed:', e); return null; } };
 
-        // ── SETUP ────────────────────────────────────────────────────────────────
-        async function doSetup() {
-            const k = document.getElementById('api-in').value.trim();
-            if (!k) return;
+        const searchLocs = async q => { try { return await apiCall(`${API_BASE}/weather/search?q=${encodeURIComponent(q)}`); } catch (e) { console.error('Search failed:', e); return []; } };
+        const geoSearch = async (la, ln) => { try { return await apiCall(`${API_BASE}/weather/geosearch?lat=${la}&lon=${ln}`); } catch (e) { console.error('Geo search failed:', e); throw e; } };
+        const getCur = async k => { try { const r = await apiCall(`${API_BASE}/weather/current/${k}`); return r?.[0] || null; } catch (e) { console.error('Current conditions failed:', e); throw e; } };
+        const getHr = async k => { try { return await apiCall(`${API_BASE}/weather/hourly/${k}`); } catch (e) { console.error('Hourly forecast failed:', e); return []; } };
+        const getDa = async k => { try { return await apiCall(`${API_BASE}/weather/daily/${k}`); } catch (e) { console.error('Daily forecast failed:', e); return null; } };
+
+        // ── AUTH ─────────────────────────────────────────────────────────────────
+        function toggleAuthForm(e) {
+            e.preventDefault();
+            const loginForm = document.getElementById('login-form');
+            const signupForm = document.getElementById('signup-form');
+            loginForm.style.display = loginForm.style.display === 'none' ? 'block' : 'none';
+            signupForm.style.display = signupForm.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function doLogin() {
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
             const errEl = document.getElementById('s-err');
+
+            if (!email || !password) {
+                errEl.textContent = '⚠ Please fill in all fields';
+                errEl.style.display = 'block';
+                return;
+            }
+
             errEl.style.display = 'none';
-            showLD('Validating API key…');
-            S.key = k;
+            showLD('Signing in...');
+
             try {
-                await searchLocs('London');
+                const res = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+
+                S.token = data.token;
+                S.userId = data.user.id;
+                S.userName = data.user.name;
+
+                localStorage.setItem('token', S.token);
+                localStorage.setItem('userId', S.userId);
+                localStorage.setItem('userName', S.userName);
+
                 hideLD();
                 document.getElementById('setup').classList.add('hidden');
                 document.getElementById('app').classList.remove('hidden');
                 initCanvas();
                 doGPS();
             } catch (e) {
-                hideLD(); S.key = '';
-                errEl.textContent = '⚠ ' + (e.message || 'Invalid API key');
+                hideLD();
+                errEl.textContent = '⚠ ' + e.message;
                 errEl.style.display = 'block';
+            }
+        }
+
+        async function doSignup() {
+            const name = document.getElementById('signup-name').value.trim();
+            const email = document.getElementById('signup-email').value.trim();
+            const password = document.getElementById('signup-password').value;
+            const errEl = document.getElementById('s-err-signup');
+
+            if (!name || !email || !password) {
+                errEl.textContent = '⚠ Please fill in all fields';
+                errEl.style.display = 'block';
+                return;
+            }
+            if (password.length < 6) {
+                errEl.textContent = '⚠ Password must be at least 6 characters';
+                errEl.style.display = 'block';
+                return;
+            }
+
+            errEl.style.display = 'none';
+            showLD('Creating account...');
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password })
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+
+                S.token = data.token;
+                S.userId = data.user.id;
+                S.userName = data.user.name;
+
+                localStorage.setItem('token', S.token);
+                localStorage.setItem('userId', S.userId);
+                localStorage.setItem('userName', S.userName);
+
+                hideLD();
+                document.getElementById('setup').classList.add('hidden');
+                document.getElementById('app').classList.remove('hidden');
+                initCanvas();
+                doGPS();
+            } catch (e) {
+                hideLD();
+                errEl.textContent = '⚠ ' + e.message;
+                errEl.style.display = 'block';
+            }
+        }
+
+        function doGoogleLogin() {
+            showToast('🔵 Google login integration coming soon!');
+            // In production: Use Google Sign-In SDK
+            // window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?...';
+        }
+
+        function logout() {
+            S.token = '';
+            S.userId = '';
+            S.userName = '';
+            localStorage.clear();
+            document.getElementById('setup').classList.remove('hidden');
+            document.getElementById('app').classList.add('hidden');
+            document.getElementById('login-email').value = '';
+            document.getElementById('login-password').value = '';
+            showToast('Logged out successfully', true);
+        }
+
+        // Check if user is already logged in
+        function checkAuth() {
+            if (S.token) {
+                document.getElementById('setup').classList.add('hidden');
+                document.getElementById('app').classList.remove('hidden');
+                initCanvas();
+                doGPS();
             }
         }
 
@@ -1663,12 +1851,27 @@
 
         // ── INIT ──────────────────────────────────────────────────────────────────
         document.addEventListener('DOMContentLoaded', () => {
-            const apiInput = document.getElementById('api-in');
-            if (apiInput) {
-                apiInput.addEventListener('keydown', e => {
-                    if (e.key === 'Enter') doSetup();
-                });
-            }
+            checkAuth();
+
+            // Add enter key for login
+            document.getElementById('login-email')?.addEventListener('keydown', e => {
+                if (e.key === 'Enter') doLogin();
+            });
+            document.getElementById('login-password')?.addEventListener('keydown', e => {
+                if (e.key === 'Enter') doLogin();
+            });
+
+            // Add enter key for signup
+            document.getElementById('signup-name')?.addEventListener('keydown', e => {
+                if (e.key === 'Enter') doSignup();
+            });
+            document.getElementById('signup-email')?.addEventListener('keydown', e => {
+                if (e.key === 'Enter') doSignup();
+            });
+            document.getElementById('signup-password')?.addEventListener('keydown', e => {
+                if (e.key === 'Enter') doSignup();
+            });
+
             initSearch();
             // Redraw sun arc on resize
             window.addEventListener('resize', () => { if (S.da) renderSun(); });
